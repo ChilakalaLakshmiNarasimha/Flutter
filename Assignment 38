@@ -1,0 +1,64 @@
+Question 4: Your client has asked you to display each user's email and name from their Firestore collection named "users" in your application. Utilize the ListTile widget for presentation.
+
+Source code:
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(); // Initialize Firebase
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Firestore Users List',
+      home: const UsersListScreen(),
+    );
+  }
+}
+
+class UsersListScreen extends StatelessWidget {
+  const UsersListScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Users')),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('users').snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text('No users found.'));
+          }
+
+          final users = snapshot.data!.docs;
+
+          return ListView.builder(
+            itemCount: users.length,
+            itemBuilder: (context, index) {
+              final user = users[index];
+              final name = user['name'] ?? 'No Name';
+              final email = user['email'] ?? 'No Email';
+
+              return ListTile(
+                leading: const Icon(Icons.person),
+                title: Text(name),
+                subtitle: Text(email),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
