@@ -1,0 +1,121 @@
+Question 5: Create a Flutter program to fetch all image links and accompanying text from a Firestore collection and present them in cards with a left-to-right slide transition effect. Ensure the cards are scrollable.
+
+Source code:
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Firestore Image Cards',
+      home: const ImageCardsScreen(),
+    );
+  }
+}
+
+class ImageCardsScreen extends StatefulWidget {
+  const ImageCardsScreen({super.key});
+
+  @override
+  State<ImageCardsScreen> createState() => _ImageCardsScreenState();
+}
+
+class _ImageCardsScreenState extends State<ImageCardsScreen>
+    with SingleTickerProviderStateMixin {
+  final GlobalKey<AnimatedListState> _listKey = GlobalKey();
+  late AnimationController _controller;
+  late Animation<Offset> _offsetAnimation;
+
+  List<Map<String, dynamic>> _items = [];
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+
+    _offsetAnimation = Tween<Offset>(
+      begin: const Offset(-1, 0), // Slide from left
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+
+    fetchData();
+  }
+
+  Future<void> fetchData() async {
+    final snapshot =
+        await FirebaseFirestore.instance.collection('images').get();
+
+    for (var doc in snapshot.docs) {
+      _items.add({
+        'image': doc['image'] ?? '',
+        'text': doc['text'] ?? '',
+      });
+      _listKey.currentState?.insertItem(_items.length - 1);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Image Cards')),
+      body: AnimatedList(
+        key: _listKey,
+        initialItemCount: _items.length,
+        itemBuilder: (context, index, animation) {
+          final item = _items[index];
+
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(-1, 0),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeInOut,
+            )),
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Card(
+                elevation: 5,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    item['image'].isNotEmpty
+                        ? Image.network(item['image'])
+                        : const SizedBox.shrink(),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        item['text'],
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
