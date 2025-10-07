@@ -1,0 +1,66 @@
+Question 3: Your client has engaged you to create a slide animation featuring an image as part of their project.
+
+Source code:
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Slide Animation Example',
+      home: const Scaffold(
+        body: Center(
+          child: SlideImageAnimation(),
+        ),
+      ),
+    );
+  }
+}
+
+class SlideImageAnimation extends StatefulWidget {
+  const SlideImageAnimation({super.key});
+
+  @override
+  State<SlideImageAnimation> createState() => _SlideImageAnimationState();
+}
+
+class _SlideImageAnimationState extends State<SlideImageAnimation> {
+  bool _isMoved = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        AnimatedPositioned(
+          duration: const Duration(seconds: 1),
+          curve: Curves.easeInOut,
+          left: _isMoved ? 200 : 0, // Slide position
+          top: 0,
+          child: Image.network(
+            'https://flutter.dev/images/flutter-logo-sharing.png',
+            width: 150,
+          ),
+        ),
+        Positioned(
+          bottom: 50,
+          child: ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _isMoved = !_isMoved;
+              });
+            },
+            child: const Text('Slide Image'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
