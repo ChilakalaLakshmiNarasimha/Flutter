@@ -1,0 +1,83 @@
+Question 9: Create a Provider that provides a list of strings and a function to add new strings to the list. Display the list in another widget.
+
+Source code:
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+// Provider Class
+class StringListProvider extends ChangeNotifier {
+  List<String> _items = [];
+
+  List<String> get items => _items;
+
+  void addItem(String item) {
+    _items.add(item);
+    notifyListeners();
+  }
+}
+
+void main() {
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => StringListProvider(),
+      child: MyApp(),
+    ),
+  );
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: HomeScreen(),
+    );
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    final stringProvider = Provider.of<StringListProvider>(context);
+
+    return Scaffold(
+      appBar: AppBar(title: Text('Provider List Example')),
+      body: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          children: [
+            TextField(
+              controller: _controller,
+              decoration: InputDecoration(
+                labelText: 'Enter a string',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: () {
+                if (_controller.text.isNotEmpty) {
+                  stringProvider.addItem(_controller.text);
+                  _controller.clear();
+                }
+              },
+              child: Text('Add String'),
+            ),
+            SizedBox(height: 20),
+            Expanded(
+              child: ListView.builder(
+                itemCount: stringProvider.items.length,
+                itemBuilder: (context, index) {
+                  return ListTile(
+                    title: Text(stringProvider.items[index]),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
