@@ -1,0 +1,108 @@
+Question 8: Create a Flutter app with two screens, each displaying a numerical value in its user interface. Upon pressing a floating action button on the home page, the value of the number will increase for both screens. Add navigation to switch between the two screens to observe the results. 
+Source code:
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(TwoScreenApp());
+}
+
+class TwoScreenApp extends StatefulWidget {
+  @override
+  State<TwoScreenApp> createState() => _TwoScreenAppState();
+}
+
+class _TwoScreenAppState extends State<TwoScreenApp> {
+  int counter = 0; // Shared counter between both screens
+
+  // Method to increase counter
+  void incrementCounter() {
+    setState(() {
+      counter++;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: HomeScreen(
+        counter: counter,
+        onIncrement: incrementCounter,
+      ),
+    );
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  final int counter;
+  final VoidCallback onIncrement;
+
+  const HomeScreen({required this.counter, required this.onIncrement});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("Home Screen"),
+        backgroundColor: Colors.teal,
+      ),
+      body: Center(
+        child: Text(
+          'Home Counter Value: $counter',
+          style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.teal,
+        onPressed: onIncrement, // Increments counter for both screens
+        child: Icon(Icons.add),
+      ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange),
+          child: Text("Go to Second Screen"),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => SecondScreen(
+                  counter: counter,
+                  onIncrement: onIncrement,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class SecondScreen extends StatelessWidget {
+  final int counter;
+  final VoidCallback onIncrement;
+
+  const SecondScreen({required this.counter, required this.onIncrement});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("Second Screen"),
+        backgroundColor: Colors.deepOrange,
+      ),
+      body: Center(
+        child: Text(
+          'Second Screen Counter Value: $counter',
+          style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.deepOrange,
+        onPressed: onIncrement, // Same function updates counter
+        child: Icon(Icons.add),
+      ),
+    );
+  }
+}
