@@ -1,0 +1,25 @@
+Question 7: Create a Form with two TextFormFields that require user input and a button to submit the form. Use the Provider package to pass the form data to another widget.
+Source code:
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'form_data_provider.dart';
+
+class ResultScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final formData = Provider.of<FormDataProvider>(context);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("Form Data")),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text("Name: ${formData.name}", style: const TextStyle(fontSize: 20)),
+            Text("Email: ${formData.email}", style: const TextStyle(fontSize: 20)),
+          ],
+        ),
+      ),
+    );
+  }
+}
