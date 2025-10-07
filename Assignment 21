@@ -1,0 +1,76 @@
+Question 07: Build a Flutter application where pressing a button will change the color of all text widgets within the application.  
+
+Source code:
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(ColorChangeApp());
+}
+
+class ColorChangeApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: ColorChangeScreen(),
+    );
+  }
+}
+
+class ColorChangeScreen extends StatefulWidget {
+  @override
+  _ColorChangeScreenState createState() => _ColorChangeScreenState();
+}
+
+class _ColorChangeScreenState extends State<ColorChangeScreen> {
+  // Initially text color is black
+  Color textColor = Colors.black;
+
+  // Function to toggle color
+  void changeColor() {
+    setState(() {
+      textColor = (textColor == Colors.black) ? Colors.blue : Colors.black;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("Change Text Color Example"),
+        backgroundColor: Colors.teal,
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              "Hello Flutter!",
+              style: TextStyle(fontSize: 24, color: textColor),
+            ),
+            Text(
+              "Welcome to Color Change App",
+              style: TextStyle(fontSize: 24, color: textColor),
+            ),
+            Text(
+              "Press the button to change color",
+              style: TextStyle(fontSize: 24, color: textColor),
+            ),
+            const SizedBox(height: 30),
+            ElevatedButton(
+              onPressed: changeColor,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal,
+                padding: EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+              ),
+              child: Text(
+                "Change Color",
+                style: TextStyle(fontSize: 20),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
