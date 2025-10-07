@@ -1,0 +1,99 @@
+Question 20: Is there any way to rotate an image clock clockwise and anti-clockwise by clicking on a single button?
+Hint 1:- Use RotationTransition widget for rotation purposes.
+Hint 2:- Add a button for controlling image rotation. 
+
+Source code:
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(RotationApp());
+}
+
+class RotationApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: RotateImageScreen(),
+    );
+  }
+}
+
+class RotateImageScreen extends StatefulWidget {
+  @override
+  _RotateImageScreenState createState() => _RotateImageScreenState();
+}
+
+class _RotateImageScreenState extends State<RotateImageScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  bool _isClockwise = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Animation controller for rotation
+    _controller = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  // Function to rotate the image
+  void _rotateImage() {
+    if (_controller.isAnimating) return;
+
+    setState(() {
+      _isClockwise = !_isClockwise;
+    });
+
+    // Animate rotation (clockwise or anticlockwise)
+    _controller
+      ..reset()
+      ..forward(from: 0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("Rotate Image Clockwise / Anti-Clockwise"),
+        backgroundColor: Colors.teal,
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            RotationTransition(
+              turns: Tween(begin: 0.0, end: _isClockwise ? 1.0 : -1.0)
+                  .animate(_controller),
+              child: Image.asset(
+                'assets/clock.png', // 🕒 Add your image in assets folder
+                width: 200,
+              ),
+            ),
+            const SizedBox(height: 40),
+            ElevatedButton.icon(
+              icon: Icon(Icons.rotate_right),
+              label: Text(
+                _isClockwise ? "Rotate Clockwise" : "Rotate Anti-Clockwise",
+                style: TextStyle(fontSize: 16),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal,
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              onPressed: _rotateImage,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
