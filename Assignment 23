@@ -1,0 +1,152 @@
+Question 09: Build a Flutter application with two screens, "About" and "Home". Use a dedicated routing class and allow the background color of the Scaffold and AppBar in the About screen to be set from the Home screen.
+Source code:
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(MyApp());
+}
+
+/// 🌐 Step 1: Routing Class
+class AppRoutes {
+  static const String home = '/';
+  static const String about = '/about';
+
+  static Route<dynamic> generateRoute(RouteSettings settings) {
+    switch (settings.name) {
+      case home:
+        return MaterialPageRoute(builder: (_) => HomeScreen());
+      case about:
+        final color = settings.arguments as Color; // Receive color from Home
+        return MaterialPageRoute(builder: (_) => AboutScreen(color: color));
+      default:
+        return MaterialPageRoute(
+          builder: (_) => Scaffold(
+            body: Center(child: Text('No route defined for ${settings.name}')),
+          ),
+        );
+    }
+  }
+}
+
+/// 🏠 Step 2: Home Screen
+class HomeScreen extends StatefulWidget {
+  @override
+  _HomeScreenState createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  Color selectedColor = Colors.teal; // Default color
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("Home Screen"),
+        backgroundColor: selectedColor,
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              "Select a color for About Screen:",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 20),
+
+            // 🔹 Color selection buttons
+            Wrap(
+              spacing: 10,
+              children: [
+                colorButton(Colors.teal),
+                colorButton(Colors.deepOrange),
+                colorButton(Colors.purple),
+                colorButton(Colors.indigo),
+              ],
+            ),
+            const SizedBox(height: 40),
+
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: selectedColor,
+                padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+              ),
+              onPressed: () {
+                Navigator.pushNamed(
+                  context,
+                  AppRoutes.about,
+                  arguments: selectedColor, // Send color to About screen
+                );
+              },
+              child: Text("Go to About Screen"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Widget for color options
+  Widget colorButton(Color color) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedColor = color;
+        });
+      },
+      child: Container(
+        width: 50,
+        height: 50,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: selectedColor == color ? Colors.black : Colors.white,
+            width: 3,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// ℹ️ Step 3: About Screen
+class AboutScreen extends StatelessWidget {
+  final Color color;
+
+  const AboutScreen({required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: color.withOpacity(0.1),
+      appBar: AppBar(
+        title: Text("About Screen"),
+        backgroundColor: color,
+      ),
+      body: Center(
+        child: Text(
+          "This is the About Screen!",
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 🚀 Step 4: Root App Widget
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Routing Example',
+      debugShowCheckedModeBanner: false,
+      initialRoute: AppRoutes.home,
+      onGenerateRoute: AppRoutes.generateRoute,
+    );
+  }
+}
