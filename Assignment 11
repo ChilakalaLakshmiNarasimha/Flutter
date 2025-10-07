@@ -1,0 +1,156 @@
+Question 16: How to Show this result based on the given details:
+
+True-answers=6
+Wrong -answers=0
+Total-questions=6
+Hint 1:- Use imageview and textview, containers for showing the image and text.
+Hint 2:- Add the logic for showing the result based on true, and false values out of total questions.
+
+Source code:
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(ResultApp());
+}
+
+class ResultApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: ResultScreen(
+        trueAnswers: 6,
+        wrongAnswers: 0,
+        totalQuestions: 6,
+      ),
+    );
+  }
+}
+
+class ResultScreen extends StatelessWidget {
+  final int trueAnswers;
+  final int wrongAnswers;
+  final int totalQuestions;
+
+  const ResultScreen({
+    super.key,
+    required this.trueAnswers,
+    required this.wrongAnswers,
+    required this.totalQuestions,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    double percentage = (trueAnswers / totalQuestions) * 100;
+    bool passed = percentage >= 40; // You can change passing logic if needed
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Top statistics section
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ResultTile(color: Colors.blue, text: "Total Question", value: totalQuestions),
+                    ResultTile(color: Colors.green, text: "True Question", value: trueAnswers),
+                    ResultTile(color: Colors.red, text: "Wrong answer", value: wrongAnswers),
+                  ],
+                ),
+                SizedBox(width: 40),
+                Column(
+                  children: [
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        SizedBox(
+                          width: 100,
+                          height: 100,
+                          child: CircularProgressIndicator(
+                            value: percentage / 100,
+                            strokeWidth: 8,
+                            backgroundColor: Colors.grey.shade300,
+                            color: passed ? Colors.green : Colors.red,
+                          ),
+                        ),
+                        Text(
+                          "${percentage.toStringAsFixed(2)}%",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: passed ? Colors.green : Colors.red,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 10),
+                    Text(
+                      passed ? "Passed" : "Failed",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: passed ? Colors.green : Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+            SizedBox(height: 40),
+            Text(
+              passed
+                  ? "Congratulations! You are passed."
+                  : "Sorry, you did not pass. Try again!",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+            ),
+            SizedBox(height: 20),
+
+            // Image Section
+            Image.asset(
+              passed
+                  ? 'assets/trophy.png' // place your image in assets folder
+                  : 'assets/failed.png', // show failed image if failed
+              width: 200,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ResultTile extends StatelessWidget {
+  final Color color;
+  final String text;
+  final int value;
+
+  const ResultTile({
+    super.key,
+    required this.color,
+    required this.text,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Container(width: 20, height: 20, color: color),
+          SizedBox(width: 8),
+          Text(
+            "$text  $value",
+            style: TextStyle(fontSize: 16),
+          ),
+        ],
+      ),
+    );
+  }
+}
