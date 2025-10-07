@@ -1,0 +1,82 @@
+Question 23: You are working on a Content-based application based on a flutter, client wants you to show a random lucky number on the click button. Which is the max limit is 350. What things will you require to achieve this Problem statement?
+
+Hint 1:- Add the method for generating random lucky numbers.
+Hint 2:- Add text and an Elevated button widget.
+
+Source code:
+import 'dart:math';
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(LuckyNumberApp());
+}
+
+class LuckyNumberApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: LuckyNumberScreen(),
+    );
+  }
+}
+
+class LuckyNumberScreen extends StatefulWidget {
+  @override
+  _LuckyNumberScreenState createState() => _LuckyNumberScreenState();
+}
+
+class _LuckyNumberScreenState extends State<LuckyNumberScreen> {
+  int? luckyNumber; // variable to store generated number
+
+  // Hint 1: Method to generate random number
+  void generateLuckyNumber() {
+    setState(() {
+      luckyNumber = Random().nextInt(350) + 1; // random number between 1–350
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: Text("Lucky Number Generator 🍀"),
+        backgroundColor: Colors.teal,
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Hint 2: Text widget to show number
+            Text(
+              luckyNumber == null
+                  ? "Click the button to get your Lucky Number!"
+                  : "🎉 Your Lucky Number is: $luckyNumber 🎉",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            SizedBox(height: 40),
+
+            // Hint 2: Elevated Button
+            ElevatedButton(
+              onPressed: generateLuckyNumber,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal,
+                padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+              ),
+              child: Text(
+                "Generate Lucky Number",
+                style: TextStyle(fontSize: 18, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
