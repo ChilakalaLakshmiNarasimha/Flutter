@@ -1,0 +1,83 @@
+Question 10: Create a Provider that provides a counter value and a function to reset the counter to zero. Display the counter value in another widget and use a button to reset the counter.
+
+Source code:
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+// Provider Class
+class CounterProvider extends ChangeNotifier {
+  int _counter = 0;
+
+  int get counter => _counter;
+
+  void increment() {
+    _counter++;
+    notifyListeners();
+  }
+
+  void reset() {
+    _counter = 0;
+    notifyListeners();
+  }
+}
+
+void main() {
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => CounterProvider(),
+      child: MyApp(),
+    ),
+  );
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: CounterScreen(),
+    );
+  }
+}
+
+class CounterScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final counterProvider = Provider.of<CounterProvider>(context);
+
+    return Scaffold(
+      appBar: AppBar(title: Text('Counter with Reset')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Counter Value:',
+              style: TextStyle(fontSize: 24),
+            ),
+            SizedBox(height: 10),
+            Text(
+              '${counterProvider.counter}',
+              style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 30),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: counterProvider.increment,
+                  child: Text('Increment'),
+                ),
+                SizedBox(width: 20),
+                ElevatedButton(
+                  onPressed: counterProvider.reset,
+                  child: Text('Reset to Zero'),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
