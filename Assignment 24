@@ -1,0 +1,88 @@
+Question 10: Create a Flutter application using Riverpod state management where pressing a button changes the background color of the appBar and Scaffold, as well as plays one of 10 music notes. 
+Source code:
+import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:audioplayers/audioplayers.dart';
+
+void main() {
+  runApp(
+    const ProviderScope(child: ColorMusicApp()),
+  );
+}
+
+/// 🎵 Riverpod State Provider for background color
+final colorProvider = StateProvider<Color>((ref) => Colors.teal);
+
+/// 🎵 Riverpod State Provider for selected note number
+final noteProvider = StateProvider<int>((ref) => 1);
+
+class ColorMusicApp extends ConsumerWidget {
+  const ColorMusicApp({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bgColor = ref.watch(colorProvider);
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: HomeScreen(bgColor: bgColor),
+    );
+  }
+}
+
+class HomeScreen extends ConsumerWidget {
+  final Color bgColor;
+  const HomeScreen({required this.bgColor});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final player = AudioPlayer();
+
+    // List of available colors
+    final List<Color> colors = [
+      Colors.teal,
+      Colors.purple,
+      Colors.deepOrange,
+      Colors.blue,
+      Colors.green,
+      Colors.red,
+      Colors.indigo,
+      Colors.amber,
+      Colors.pink,
+      Colors.cyan,
+    ];
+
+    return Scaffold(
+      backgroundColor: bgColor,
+      appBar: AppBar(
+        title: const Text("Riverpod Color & Music App"),
+        backgroundColor: bgColor,
+      ),
+      body: Center(
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.black,
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+          ),
+          child: const Text(
+            "Change Color & Play Note",
+            style: TextStyle(fontSize: 18, color: Colors.white),
+          ),
+          onPressed: () async {
+            final random = Random();
+
+            // 🎨 Change to a random color
+            final newColor = colors[random.nextInt(colors.length)];
+            ref.read(colorProvider.notifier).state = newColor;
+
+            // 🎵 Play a random note from 1 to 10
+            final noteNumber = random.nextInt(10) + 1;
+            ref.read(noteProvider.notifier).state = noteNumber;
+
+            await player.play(AssetSource('note$noteNumber.wav'));
+          },
+        ),
+      ),
+    );
+  }
+}
