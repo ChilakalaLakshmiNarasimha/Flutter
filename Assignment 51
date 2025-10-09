@@ -1,0 +1,99 @@
+Question 18: Create a Flutter application that retrieves and displays user comments from the server using the API "https://jsonplaceholder.typicode.com/comments". The comments should include the name and email of each user. 
+Source code:
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+void main() {
+  runApp(const CommentsApp());
+}
+
+class CommentsApp extends StatelessWidget {
+  const CommentsApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'User Comments',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(primarySwatch: Colors.blue),
+      home: const CommentsPage(),
+    );
+  }
+}
+
+class CommentsPage extends StatefulWidget {
+  const CommentsPage({super.key});
+
+  @override
+  State<CommentsPage> createState() => _CommentsPageState();
+}
+
+class _CommentsPageState extends State<CommentsPage> {
+  List<dynamic> _comments = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchComments();
+  }
+
+  /// Fetch comments from the given API
+  Future<void> fetchComments() async {
+    const url = 'https://jsonplaceholder.typicode.com/comments';
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        setState(() {
+          _comments = json.decode(response.body);
+          _isLoading = false;
+        });
+      } else {
+        throw Exception('Failed to load comments');
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("User Comments")),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView.builder(
+              itemCount: _comments.length,
+              itemBuilder: (context, index) {
+                final comment = _comments[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  elevation: 2,
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      child: Text(comment['name'][0].toUpperCase()),
+                    ),
+                    title: Text(comment['name'],
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(comment['email'],
+                            style: const TextStyle(color: Colors.blueGrey)),
+                        const SizedBox(height: 4),
+                        Text(comment['body']),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+    );
+  }
+}
