@@ -1,0 +1,95 @@
+Question 19: Develop a Flutter application that follows the Model-View-ViewModel (MVVM) pattern and has similar functionality to the default counter app in Flutter. 
+Source code:
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+/// --------------------
+/// MODEL
+/// --------------------
+class CounterModel {
+  int count;
+  CounterModel({this.count = 0});
+}
+
+/// --------------------
+/// VIEWMODEL
+/// --------------------
+class CounterViewModel extends ChangeNotifier {
+  final CounterModel _counterModel = CounterModel();
+
+  int get counter => _counterModel.count;
+
+  void incrementCounter() {
+    _counterModel.count++;
+    notifyListeners(); // Notify the view to rebuild
+  }
+
+  void resetCounter() {
+    _counterModel.count = 0;
+    notifyListeners();
+  }
+}
+
+/// --------------------
+/// VIEW
+/// --------------------
+void main() {
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => CounterViewModel(),
+      child: const MVVMCounterApp(),
+    ),
+  );
+}
+
+class MVVMCounterApp extends StatelessWidget {
+  const MVVMCounterApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'MVVM Counter App',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(primarySwatch: Colors.blue),
+      home: const CounterView(),
+    );
+  }
+}
+
+class CounterView extends StatelessWidget {
+  const CounterView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final viewModel = Provider.of<CounterViewModel>(context);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('MVVM Counter Example')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'You have pushed the button this many times:',
+              style: TextStyle(fontSize: 16),
+            ),
+            Text(
+              '${viewModel.counter}',
+              style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: viewModel.resetCounter,
+              child: const Text("Reset Counter"),
+            ),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: viewModel.incrementCounter,
+        tooltip: 'Increment',
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
