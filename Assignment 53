@@ -1,0 +1,434 @@
+Question 20: Implement a Flutter application that resembles the functionality of the "GET IT DONE" app, with the added feature of storing data on Firebase and incorporating email and password authentication. 
+Source code:
+import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uuid/uuid.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  runApp(const GetItDoneApp());
+}
+
+class GetItDoneApp extends StatelessWidget {
+  const GetItDoneApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'GET IT DONE',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        primarySwatch: Colors.deepPurple,
+        scaffoldBackgroundColor: Colors.grey[50],
+      ),
+      home: const AuthGate(),
+    );
+  }
+}
+
+/// AuthGate: shows AuthPage when not signed in, HomePage when signed in.
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        // waiting
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+
+        final user = snapshot.data;
+        if (user == null) {
+          return const AuthPage();
+        } else {
+          return HomePage(user: user);
+        }
+      },
+    );
+  }
+}
+
+/// AuthPage: Login / Sign Up toggle
+class AuthPage extends StatefulWidget {
+  const AuthPage({super.key});
+
+  @override
+  State<AuthPage> createState() => _AuthPageState();
+}
+
+class _AuthPageState extends State<AuthPage> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isLogin = true;
+  bool _loading = false;
+
+  Future<void> _submit() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Please enter email & password')));
+      return;
+    }
+
+    setState(() => _loading = true);
+
+    try {
+      if (_isLogin) {
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+      } else {
+        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+      }
+      // auth state change will handle navigation
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? 'Authentication error')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildCard() {
+    return Card(
+      elevation: 6,
+      margin: const EdgeInsets.symmetric(horizontal: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(18.0),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(_isLogin ? 'Welcome back' : 'Create an account',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _passwordController,
+            obscureText: true,
+            decoration: const InputDecoration(labelText: 'Password', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _loading ? null : _submit,
+              child: _loading
+                  ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : Text(_isLogin ? 'Log In' : 'Sign Up'),
+            ),
+          ),
+          const SizedBox(height: 6),
+          TextButton(
+            onPressed: () => setState(() => _isLogin = !_isLogin),
+            child: Text(_isLogin ? "Don't have an account? Sign Up" : "Already have an account? Log In"),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      // Simple gentle background and centered card
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 48),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.check_circle_outline, size: 90, color: Colors.deepPurple),
+            const SizedBox(height: 16),
+            const Text('GET IT DONE', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 24),
+            _buildCard(),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+/// HomePage: shows the user's todos and controls
+class HomePage extends StatelessWidget {
+  final User user;
+  const HomePage({required this.user, super.key});
+
+  CollectionReference<Map<String, dynamic>> userTasksRef() {
+    return FirebaseFirestore.instance.collection('users').doc(user.uid).collection('tasks');
+  }
+
+  /// Add task dialog
+  Future<void> _showAddEditDialog(BuildContext context, {String? taskId, String? initialText, bool initialDone = false}) async {
+    final controller = TextEditingController(text: initialText ?? '');
+    final isEditing = taskId != null;
+    bool saving = false;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx, setState) {
+          return AlertDialog(
+            title: Text(isEditing ? 'Edit Task' : 'Add Task'),
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(hintText: 'What do you need to do?'),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+              ElevatedButton(
+                onPressed: saving
+                    ? null
+                    : () async {
+                        final text = controller.text.trim();
+                        if (text.isEmpty) {
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(const SnackBar(content: Text('Task cannot be empty')));
+                          return;
+                        }
+                        setState(() => saving = true);
+
+                        final tasks = userTasksRef();
+                        final now = DateTime.now();
+                        if (isEditing) {
+                          await tasks.doc(taskId).update({
+                            'title': text,
+                            'updatedAt': now.toUtc(),
+                          });
+                        } else {
+                          final id = const Uuid().v4();
+                          await tasks.doc(id).set({
+                            'title': text,
+                            'done': false,
+                            'createdAt': now.toUtc(),
+                            'updatedAt': now.toUtc(),
+                          });
+                        }
+                        if (ctx.mounted) Navigator.of(ctx).pop();
+                      },
+                child: saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Text(isEditing ? 'Save' : 'Add'),
+              ),
+            ],
+          );
+        });
+      },
+    );
+
+    controller.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tasks = userTasksRef().orderBy('createdAt', descending: true).withConverter(
+      fromFirestore: (snap, _) => snap.data()!..putIfAbsent('id', () => snap.id),
+      toFirestore: (map, _) => map,
+    );
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('GET IT DONE'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: 'Sign Out',
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+            },
+            icon: const Icon(Icons.logout),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // small user info panel
+          Container(
+            width: double.infinity,
+            color: Colors.deepPurple[50],
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Colors.deepPurple,
+                  child: Text(user.email?.substring(0, 1).toUpperCase() ?? 'U'),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(user.email ?? 'No email', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text('UID: ${user.uid}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                  ]),
+                ),
+                IconButton(
+                  tooltip: 'Add Task',
+                  onPressed: () => _showAddEditDialog(context),
+                  icon: const Icon(Icons.add_task),
+                )
+              ],
+            ),
+          ),
+
+          // tasks list
+          Expanded(
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: tasks.snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+
+                final docs = snapshot.data?.docs ?? [];
+
+                if (docs.isEmpty) {
+                  return Center(
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Text('No tasks yet', style: TextStyle(fontSize: 16, color: Colors.grey[700])),
+                      const SizedBox(height: 8),
+                      ElevatedButton.icon(
+                        onPressed: () => _showAddEditDialog(context),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add your first task'),
+                      ),
+                    ]),
+                  );
+                }
+
+                return ListView.separated(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: docs.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 6),
+                  itemBuilder: (context, index) {
+                    final doc = docs[index];
+                    final data = doc.data();
+                    final id = doc.id;
+                    final title = data['title'] as String? ?? '';
+                    final done = data['done'] as bool? ?? false;
+                    final ts = data['createdAt'];
+                    DateTime? created;
+                    if (ts is Timestamp) created = ts.toDate();
+                    // UI for each task
+                    return Dismissible(
+                      key: ValueKey(id),
+                      background: Container(color: Colors.redAccent, padding: const EdgeInsets.only(left: 20), alignment: Alignment.centerLeft, child: const Icon(Icons.delete, color: Colors.white)),
+                      secondaryBackground: Container(color: Colors.green, padding: const EdgeInsets.only(right: 20), alignment: Alignment.centerRight, child: const Icon(Icons.edit, color: Colors.white)),
+                      confirmDismiss: (direction) async {
+                        if (direction == DismissDirection.endToStart) {
+                          // edit (swipe left)
+                          await _showAddEditDialog(context, taskId: id, initialText: title, initialDone: done);
+                          return false; // don't dismiss
+                        } else {
+                          // delete (swipe right)
+                          final confirmed = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Delete task?'),
+                                  content: Text('Delete "$title"? This cannot be undone.'),
+                                  actions: [
+                                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                    ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+                                  ],
+                                ),
+                              ) ??
+                              false;
+                          if (confirmed) {
+                            await userTasksRef().doc(id).delete();
+                          }
+                          return confirmed;
+                        }
+                      },
+                      child: Card(
+                        margin: const EdgeInsets.symmetric(horizontal: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        child: ListTile(
+                          leading: Checkbox(
+                            value: done,
+                            onChanged: (v) async {
+                              await userTasksRef().doc(id).update({
+                                'done': v ?? false,
+                                'updatedAt': DateTime.now().toUtc(),
+                              });
+                            },
+                          ),
+                          title: Text(
+                            title,
+                            style: TextStyle(
+                              decoration: done ? TextDecoration.lineThrough : TextDecoration.none,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                              color: done ? Colors.black54 : Colors.black87,
+                            ),
+                          ),
+                          subtitle: created != null ? Text('Created ${created.toLocal()}') : null,
+                          trailing: PopupMenuButton<String>(
+                            onSelected: (value) async {
+                              if (value == 'edit') {
+                                await _showAddEditDialog(context, taskId: id, initialText: title, initialDone: done);
+                              } else if (value == 'delete') {
+                                final confirmed = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('Delete task?'),
+                                        content: Text('Delete "$title"?'),
+                                        actions: [
+                                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+                                        ],
+                                      ),
+                                    ) ??
+                                    false;
+                                if (confirmed) {
+                                  await userTasksRef().doc(id).delete();
+                                }
+                              }
+                            },
+                            itemBuilder: (ctx) => [
+                              const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                              const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAddEditDialog(context),
+        child: const Icon(Icons.add),
+        tooltip: 'Add Task',
+      ),
+    );
+  }
+}
