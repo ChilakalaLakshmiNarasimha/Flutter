@@ -1,0 +1,312 @@
+Question 01: You have to develop a cake-ordering application that allows users to place orders for cakes and view them on the admin panel. The application will have the following features:
+
+User-friendly interface for placing cake orders, including options for customizing the cake such as size.
+Securing authentication for the users to place orders and for the admin to view them.
+Creating the Admin panel to view all orders placed by users and update the status of orders.
+Making use of Firebase to store order data.
+Note: This final project will provide you with the opportunity to apply the concepts and techniques covered throughout the course to create a functional, production-ready application. This project will include the use of advanced features like Firebase integration, push notifications, and user authentication.
+
+The potential UI design of the admin app and the User app is given as follows:
+Source code:
+import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
+
+// --- ENTRY POINT ---
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  runApp(const MyApp());
+}
+
+// --- APP ---
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return MultiProvider(
+      providers: [
+        StreamProvider<User?>.value(
+          value: FirebaseAuth.instance.authStateChanges(),
+          initialData: FirebaseAuth.instance.currentUser,
+        ),
+      ],
+      child: MaterialApp(
+        title: 'OrderCake',
+        theme: ThemeData(primarySwatch: Colors.pink),
+        home: const RootPage(),
+      ),
+    );
+  }
+}
+
+// --- ROOT: decides auth vs home ---
+class RootPage extends StatelessWidget {
+  const RootPage({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final user = Provider.of<User?>(context);
+    if (user == null) return const AuthPage();
+    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      future: FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+        // if there's doc and isAdmin true => show admin panel
+        final data = snap.data?.data();
+        final isAdmin = data != null && data['isAdmin'] == true;
+        if (isAdmin) return AdminHomePage(user: user);
+        return UserHomePage(user: user);
+      },
+    );
+  }
+}
+
+// -------------------------------
+// AUTH PAGE (register/login)
+// -------------------------------
+class AuthPage extends StatefulWidget {
+  const AuthPage({super.key});
+  @override
+  State<AuthPage> createState() => _AuthPageState();
+}
+class _AuthPageState extends State<AuthPage> {
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+  bool _isLogin = true;
+  bool _loading = false;
+
+  Future<void> _submit() async {
+    setState(() => _loading = true);
+    try {
+      if (_isLogin) {
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: _email.text.trim(),
+          password: _password.text,
+        );
+      } else {
+        final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: _email.text.trim(),
+          password: _password.text,
+        );
+        // create user profile in Firestore
+        await FirebaseFirestore.instance.collection('users').doc(cred.user!.uid).set({
+          'email': _email.text.trim(),
+          'isAdmin': false, // set manually to true for admin in console or code
+        });
+      }
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? 'Auth error')));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('OrderCake - Auth')),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(children: [
+          TextField(controller: _email, decoration: const InputDecoration(labelText: 'Email')),
+          const SizedBox(height: 12),
+          TextField(controller: _password, obscureText: true, decoration: const InputDecoration(labelText: 'Password')),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: _loading ? null : _submit,
+            child: Text(_isLogin ? 'Login' : 'Register'),
+          ),
+          TextButton(onPressed: () => setState(() => _isLogin = !_isLogin), child: Text(_isLogin ? 'Create account' : 'Have an account? Login')),
+        ]),
+      ),
+    );
+  }
+}
+
+// -------------------------------
+// USER HOME: place order
+// -------------------------------
+class UserHomePage extends StatefulWidget {
+  final User user;
+  const UserHomePage({required this.user, super.key});
+  @override
+  State<UserHomePage> createState() => _UserHomePageState();
+}
+class _UserHomePageState extends State<UserHomePage> {
+  final _name = TextEditingController();
+  final _phone = TextEditingController();
+  final _address = TextEditingController();
+  String _cakeType = 'Chocolate Brownie';
+  String _size = '6 inch';
+  bool _loading = false;
+
+  Future<void> _placeOrder() async {
+    final id = const Uuid().v4();
+    setState(() => _loading = true);
+    final order = {
+      'id': id,
+      'userId': widget.user.uid,
+      'email': widget.user.email,
+      'name': _name.text.trim(),
+      'phone': _phone.text.trim(),
+      'address': _address.text.trim(),
+      'cakeType': _cakeType,
+      'size': _size,
+      'status': 'Order Received', // initial
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    try {
+      await FirebaseFirestore.instance.collection('orders').doc(id).set(order);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Order placed!')));
+      _name.clear(); _phone.clear(); _address.clear();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  // view my orders
+  Widget _buildMyOrders() {
+    final q = FirebaseFirestore.instance.collection('orders').where('userId', isEqualTo: widget.user.uid).orderBy('createdAt', descending: true);
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: q.snapshots(),
+      builder: (context, snap) {
+        if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+        final docs = snap.data!.docs;
+        if (docs.isEmpty) return const Center(child: Text('No orders yet'));
+        return ListView.builder(
+          shrinkWrap: true,
+          itemCount: docs.length,
+          itemBuilder: (ctx, i) {
+            final d = docs[i].data();
+            return ListTile(
+              title: Text(d['cakeType'] ?? ''),
+              subtitle: Text('Status: ${d['status'] ?? ''}'),
+              trailing: Text(d['size'] ?? ''),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('OrderCake - User'),
+        actions: [
+          IconButton(onPressed: () async { await FirebaseAuth.instance.signOut(); }, icon: const Icon(Icons.logout)),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(children: [
+          const Text('Place Order', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          TextField(controller: _name, decoration: const InputDecoration(labelText: 'Name')),
+          const SizedBox(height: 8),
+          TextField(controller: _phone, decoration: const InputDecoration(labelText: 'Phone')),
+          const SizedBox(height: 8),
+          TextField(controller: _address, decoration: const InputDecoration(labelText: 'Address')),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            value: _cakeType,
+            items: ['Chocolate Brownie', 'Red Velvet', 'Black Forest', 'Vanilla'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+            onChanged: (v) => setState(() => _cakeType = v!),
+            decoration: const InputDecoration(labelText: 'Cake Type'),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            value: _size,
+            items: ['6 inch','8 inch','10 inch'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+            onChanged: (v) => setState(() => _size = v!),
+            decoration: const InputDecoration(labelText: 'Size'),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: _loading ? null : _placeOrder,
+            child: _loading ? const CircularProgressIndicator(color: Colors.white) : const Text('Place Order'),
+          ),
+          const SizedBox(height: 24),
+          const Text('My Orders', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          _buildMyOrders(),
+        ]),
+      ),
+    );
+  }
+}
+
+// -------------------------------
+// ADMIN HOME: view & update orders
+// -------------------------------
+class AdminHomePage extends StatelessWidget {
+  final User user;
+  const AdminHomePage({required this.user, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final ordersRef = FirebaseFirestore.instance.collection('orders').orderBy('createdAt', descending: true);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Admin Panel'),
+        actions: [IconButton(onPressed: () async { await FirebaseAuth.instance.signOut(); }, icon: const Icon(Icons.logout))],
+      ),
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: ordersRef.snapshots(),
+        builder: (context, snap) {
+          if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+          final docs = snap.data!.docs;
+          if (docs.isEmpty) return const Center(child: Text('No orders yet'));
+          return ListView.builder(
+            itemCount: docs.length,
+            itemBuilder: (ctx, i) {
+              final d = docs[i].data();
+              final id = docs[i].id;
+              final status = d['status'] ?? 'Order Received';
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: ListTile(
+                  title: Text(d['cakeType'] ?? ''),
+                  subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Customer: ${d['name'] ?? ''}'),
+                    Text('Phone: ${d['phone'] ?? ''}'),
+                    Text('Address: ${d['address'] ?? ''}'),
+                    Text('Status: $status'),
+                  ]),
+                  trailing: PopupMenuButton<String>(
+                    onSelected: (v) async {
+                      await FirebaseFirestore.instance.collection('orders').doc(id).update({
+                        'status': v,
+                        'updatedAt': FieldValue.serverTimestamp(),
+                      });
+                      // TODO: trigger FCM notification to user
+                    },
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(value: 'Order Received', child: Text('Order Received')),
+                      const PopupMenuItem(value: 'Preparing', child: Text('Preparing')),
+                      const PopupMenuItem(value: 'Out for Delivery', child: Text('Out for Delivery')),
+                      const PopupMenuItem(value: 'Delivered', child: Text('Delivered')),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () { /* optionally show stats or filter */ },
+        child: const Icon(Icons.filter_alt),
+      ),
+    );
+  }
+}
